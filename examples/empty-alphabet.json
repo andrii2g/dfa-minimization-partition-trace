@@ -1,0 +1,4 @@
+{
+  "alphabet": [], "states": ["s", "unreachable"], "start": "s", "accepting": ["s"],
+  "transitions": {"s": {}, "unreachable": {}}
+}

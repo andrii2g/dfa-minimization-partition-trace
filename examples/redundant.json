@@ -1,0 +1,15 @@
+{
+  "alphabet": ["a", "b"],
+  "states": ["q0", "q0copy", "q1", "q1copy", "q2", "q2copy", "unreachable"],
+  "start": "q0",
+  "accepting": ["q2", "q2copy"],
+  "transitions": {
+    "q0": {"a": "q1", "b": "q0copy"},
+    "q0copy": {"a": "q1copy", "b": "q0"},
+    "q1": {"a": "q1copy", "b": "q2"},
+    "q1copy": {"a": "q1", "b": "q2copy"},
+    "q2": {"a": "q1", "b": "q0"},
+    "q2copy": {"a": "q1copy", "b": "q0copy"},
+    "unreachable": {"a": "unreachable", "b": "unreachable"}
+  }
+}

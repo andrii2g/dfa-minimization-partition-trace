@@ -1,0 +1,4 @@
+{
+  "alphabet": ["a", "b"], "states": ["s", "t"], "start": "s", "accepting": ["s", "t"],
+  "transitions": {"s": {"a": "t", "b": "s"}, "t": {"a": "s", "b": "t"}}
+}

@@ -35,8 +35,8 @@ pub fn refine(dfa: &Dfa, tracing: bool) -> Refinement {
         } else {
             1
         };
-        for a in 0..k {
-            pending[smaller][a] = true;
+        for (a, is_pending) in pending[smaller].iter_mut().enumerate() {
+            *is_pending = true;
             queue.push_back((smaller, a));
         }
     }
@@ -92,7 +92,7 @@ pub fn refine(dfa: &Dfa, tracing: bool) -> Refinement {
                     },
                 });
             }
-            for symbol in 0..k {
+            for (symbol, _) in dfa.alphabet.iter().enumerate() {
                 // Existing entries for the old block now represent its retained complement.
                 let add = if pending[id][symbol] || blocks[new_id].len() <= blocks[id].len() {
                     new_id
