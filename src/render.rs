@@ -127,9 +127,11 @@ pub fn svg(dfa: &Dfa, title: &str, members: Option<&[Vec<String>]>) -> String {
         if dfa.accepting[q] {
             writeln!(out, r##"<circle cx="{x:.2}" cy="{y:.2}" r="27" fill="none" stroke="{stroke}" stroke-width="1.5"/>"##).unwrap();
         }
-        writeln!(out, r##"<text x="{x:.2}" y="{:.2}" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">{}</text>"##, y + 4.0, xml(&abbreviated(&dfa.names[q], 9))).unwrap();
+        writeln!(out, r##"<text x="{x:.2}" y="{:.2}" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">{}</text>"##, y + 4.0, xml(&abbreviated(&dfa.names[q], 7))).unwrap();
         if let Some(members) = members {
-            writeln!(out, r##"<text x="{x:.2}" y="{:.2}" text-anchor="middle" font-size="11" fill="#475569">{}</text>"##, y + 50.0, xml(&abbreviated(&format!("{{{}}}", members[q].join(", ")), 26))).unwrap();
+            let label = abbreviated(&format!("{{{}}}", members[q].join(", ")), 26);
+            let label_width = label.chars().count() as f64 * 7.0 + 8.0;
+            writeln!(out, r##"<rect x="{:.2}" y="{:.2}" width="{label_width:.2}" height="18" rx="4" fill="#f8fafc"/><text x="{x:.2}" y="{:.2}" text-anchor="middle" font-size="11" fill="#475569">{}</text>"##, x - label_width / 2.0, y + 37.0, y + 50.0, xml(&label)).unwrap();
         }
         out.push_str("</g>\n");
     }

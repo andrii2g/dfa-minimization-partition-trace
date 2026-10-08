@@ -1,5 +1,8 @@
 use anyhow::{Result, bail, ensure};
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Deserializer, Serialize,
+    de::{MapAccess, Visitor},
+};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// Human-readable, complete deterministic automaton. Symbols are single Unicode characters.
@@ -10,9 +13,55 @@ pub struct DfaJson {
     pub states: Vec<String>,
     pub start: String,
     pub accepting: Vec<String>,
+    #[serde(deserialize_with = "unique_transitions")]
     pub transitions: BTreeMap<String, BTreeMap<String, String>>,
 }
 
+// serde's ordinary map decoder silently replaces duplicate keys. A deterministic
+// automaton must reject duplicate rows and symbols even when their values agree.
+struct UniqueMap<V>(BTreeMap<String, V>);
+
+impl<'de, V: Deserialize<'de>> Deserialize<'de> for UniqueMap<V> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        struct UniqueVisitor<V>(std::marker::PhantomData<V>);
+        impl<'de, V: Deserialize<'de>> Visitor<'de> for UniqueVisitor<V> {
+            type Value = UniqueMap<V>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an object with unique keys")
+            }
+            fn visit_map<M: MapAccess<'de>>(
+                self,
+                mut map: M,
+            ) -> std::result::Result<Self::Value, M::Error> {
+                let mut values = BTreeMap::new();
+                while let Some((key, value)) = map.next_entry::<String, V>()? {
+                    if values.contains_key(&key) {
+                        return Err(serde::de::Error::custom(format!(
+                            "duplicate transition key {key:?}"
+                        )));
+                    }
+                    values.insert(key, value);
+                }
+                Ok(UniqueMap(values))
+            }
+        }
+        deserializer.deserialize_map(UniqueVisitor(std::marker::PhantomData))
+    }
+}
+
+fn unique_transitions<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<BTreeMap<String, BTreeMap<String, String>>, D::Error> {
+    let rows = UniqueMap::<UniqueMap<String>>::deserialize(deserializer)?;
+    Ok(rows
+        .0
+        .into_iter()
+        .map(|(name, row)| (name, row.0))
+        .collect())
+}
+
+/// Dense validated representation. When constructing directly, keep indices in
+/// range, the alphabet sorted and unique, and one complete row per state.
 #[derive(Debug, Clone)]
 pub struct Dfa {
     pub alphabet: Vec<String>,
@@ -223,6 +272,24 @@ mod tests {
             SAMPLE.replace("\"a\":\"f\"", "\"a\":\"missing\""),
         ] {
             assert!(Dfa::from_json(&invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_duplicate_transition_keys() {
+        for transitions in [
+            r#"{"s":{"a":"s","a":"s"}}"#,
+            r#"{"s":{"a":"s"},"s":{"a":"s"}}"#,
+        ] {
+            let text = format!(
+                r#"{{"alphabet":["a"],"states":["s"],"start":"s","accepting":[],"transitions":{transitions}}}"#
+            );
+            assert!(
+                Dfa::from_json(&text)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("duplicate transition key")
+            );
         }
     }
 }

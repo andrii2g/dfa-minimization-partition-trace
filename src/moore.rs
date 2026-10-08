@@ -3,7 +3,6 @@ use crate::{
     partition::{Metrics, Refinement, initial_partition, membership, named_block, new_trace},
     trace::{Cause, SplitEvent},
 };
-use std::collections::BTreeMap;
 
 /// Synchronous Moore refinement. Every symbol in a round uses the frozen old partition.
 pub fn refine(dfa: &Dfa, tracing: bool) -> Refinement {
@@ -15,25 +14,31 @@ pub fn refine(dfa: &Dfa, tracing: bool) -> Refinement {
         round += 1;
         let old_membership = membership(&blocks, dfa.names.len());
         let old_count = blocks.len();
+        let mut groups = vec![Vec::new(); old_count];
         for a in 0..dfa.alphabet.len() {
             let count_before_symbol = blocks.len();
             for id in 0..count_before_symbol {
-                let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+                let mut touched = Vec::new();
                 for &q in &blocks[id] {
                     metrics.transition_examinations += 1;
-                    groups
-                        .entry(old_membership[dfa.transitions[q][a]])
-                        .or_default()
-                        .push(q);
+                    let destination = old_membership[dfa.transitions[q][a]];
+                    if groups[destination].is_empty() {
+                        touched.push(destination);
+                    }
+                    groups[destination].push(q);
                 }
-                if groups.len() <= 1 {
+                if touched.len() <= 1 {
+                    for destination in touched {
+                        groups[destination].clear();
+                    }
                     continue;
                 }
                 let source = tracing.then(|| named_block(dfa, id, &blocks[id]));
                 let mut children = Vec::new();
                 let mut destinations = Vec::new();
-                metrics.partition_splits += groups.len() - 1;
-                for (index, (destination, states)) in groups.into_iter().enumerate() {
+                metrics.partition_splits += touched.len() - 1;
+                for (index, destination) in touched.into_iter().enumerate() {
+                    let states = std::mem::take(&mut groups[destination]);
                     let child_id = if index == 0 { id } else { blocks.len() };
                     if tracing {
                         children.push(named_block(dfa, child_id, &states));
