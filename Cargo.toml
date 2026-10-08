@@ -1,0 +1,12 @@
+[package]
+name = "dfa-minimization-partition-trace"
+version = "0.1.0"
+edition = "2024"
+description = "Explain and compare Moore and Hopcroft DFA minimization"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
